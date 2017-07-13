@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class Application2 {
     public static void main(String[] args) throws IOException {
-        Path path = Paths.get("C:\\temp\\test.xlsx");
+        Path path = Paths.get("/home/dimkas71/temp1/test.xlsx");
 
         if (Files.exists(path)) {
             XSSFWorkbook wb = new XSSFWorkbook(new FileInputStream(path.toFile()));
