@@ -21,7 +21,8 @@ public class Main {
         GENERATE("generate"),
         MERGE("merge"),
         BUILDSCHEDULE("buildschedule"),
-        FULLTIME("fulltime");
+        FULLTIME("fulltime"),
+        TIMETABLE("timetable");
 
         String name;
 
@@ -213,6 +214,41 @@ public class Main {
 
 
                         break;
+                    case TIMETABLE:
+                        String newPath = "newfff.xlsx";
+                        if (cl.hasOption("n")) {
+                            newPath = cl.getOptionValue("n");
+                            if (!Files.exists(Paths.get(newPath))) {
+                                String userDir = System.getProperty("user.dir");
+                                Path path1 = Paths.get(userDir).resolve(newPath);
+                                newPath = String.valueOf(path1.toAbsolutePath());
+                            }
+
+                        }
+
+                        String oldPath = "new.xlsx";
+                        if (cl.hasOption("f")) {
+                            oldPath = cl.getOptionValue("f");
+                            if (!Files.exists(Paths.get(oldPath))) {
+                                String userDir = System.getProperty("user.dir");
+                                Path path1 = Paths.get(userDir).resolve(oldPath);
+                                oldPath = String.valueOf(path1.toAbsolutePath());
+                            }
+
+                        }
+
+                        int __firstDayColumn = 4;
+                        if (cl.hasOption("c")) {
+                            __firstDayColumn = Integer.parseInt(cl.getOptionValue("c"));
+                        }
+
+                        int __lastDayColumn = 18;
+                        if (cl.hasOption("t")) {
+                            __lastDayColumn = Integer.parseInt(cl.getOptionValue("t"));
+                        }
+
+                        writeTimeTableForFile(newPath, oldPath, createTimeMapperFromPath(oldPath), __firstDayColumn, __lastDayColumn);
+                         break;
                     default:
                         break;
 
@@ -585,6 +621,7 @@ public class Main {
                     }
                 }
             }
+            wbReader.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -620,6 +657,8 @@ public class Main {
             wbWritable.write(fos);
 
             fos.close();
+
+            wbWritable.close();
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -669,6 +708,9 @@ public class Main {
             wbWriteable.write(fos);
 
             fos.close();
+
+            wbWriteable.close();
+
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -700,6 +742,9 @@ public class Main {
                     }
                     map.put(key, value);
                 }
+
+                wbReadable.close();
+
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -714,7 +759,7 @@ public class Main {
 
     }
 
-    private static void writeTimeTableForFile(String newStringPath, String sourcePath, Map<String, Double> mapper) {
+    private static void writeTimeTableForFile(String newStringPath, String sourcePath, Map<String, Double> mapper, int firstDayColumn, int lastDayColumn) {
         if (!Files.exists(Paths.get(newStringPath))) {
             try {
                 Files.copy(Paths.get(sourcePath), Paths.get(newStringPath), StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
@@ -729,7 +774,7 @@ public class Main {
 
                     XSSFRow row = sheet.getRow(rowIndex);
 
-                    for (int colIndex = 4; colIndex <= row.getLastCellNum(); colIndex++) {
+                    for (int colIndex = firstDayColumn; colIndex <= lastDayColumn; colIndex++) {
                         XSSFCell cell = row.getCell(colIndex);
                         if (cell == null) continue;
 
@@ -756,6 +801,8 @@ public class Main {
                     workbook.write(fos);
 
                     fos.close();
+
+                    workbook.close();
                 }
 
 
