@@ -1,0 +1,9 @@
+
+3. buildscheduling ---
+--mode buildschedule -f newfile.xlsx -c 4
+
+4. fulltime
+--mode fulltime -f newfile.xlsx -c 4 -t 21
+
+5. timetable
+--mode timetable -n newfiletable.xlsx -f newfile.xlsx -c 4 -t 18

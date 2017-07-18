@@ -160,7 +160,7 @@ public class Main {
                         merge(newFile, config);
                         break;
                     case BUILDSCHEDULE:
-                        String target = "new.xlsx";
+                        String target = "newfile.xlsx";
                         if (cl.hasOption("f")) {
                             target = cl.getOptionValue("f");
                         }
@@ -610,7 +610,12 @@ public class Main {
                 for (int colIndex = firstDayColumn; colIndex <= row.getLastCellNum(); colIndex++) {
                     XSSFCell cell = row.getCell(colIndex);
                     if (cell == null) continue;
-                    String rawValue = cell.getStringCellValue();
+                    String rawValue = "";
+                    if (cell.getCellTypeEnum() == CellType.NUMERIC) {
+                        rawValue = String.valueOf(cell.getNumericCellValue());
+                    } else {
+                        rawValue = cell.getStringCellValue();
+                    }
 
                     String[] strings = rawValue.split("\\n");
 
@@ -677,7 +682,9 @@ public class Main {
 
             XSSFSheet sheet = wbWriteable.getSheetAt(0);
 
-            for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+
+            //TODO: change sheet.getFirstRowNum() + 1 on more predictable behaviour
+            for (int rowIndex = sheet.getFirstRowNum() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 XSSFRow row = sheet.getRow(rowIndex);
 
 
@@ -778,7 +785,16 @@ public class Main {
                         XSSFCell cell = row.getCell(colIndex);
                         if (cell == null) continue;
 
-                        String[] keys = cell.getStringCellValue().split("\\n");
+                        String cellValue = "";
+
+                        if (cell.getCellTypeEnum() == CellType.NUMERIC) {
+                            cellValue = String.valueOf(cell.getNumericCellValue());
+                        } else {
+                            cellValue = cell.getStringCellValue();
+                        }
+
+
+                        String[] keys = cellValue.split("\\n");
 
                         double hours = 0d;
                         for (String key : keys) {
