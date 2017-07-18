@@ -9,8 +9,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,7 +19,9 @@ public class Main {
     private enum Mode {
 
         GENERATE("generate"),
-        MERGE("merge");
+        MERGE("merge"),
+        BUILDSCHEDULE("buildschedule"),
+        FULLTIME("fulltime");
 
         String name;
 
@@ -28,9 +30,6 @@ public class Main {
         }
 
     }
-
-
-
 
 
     public static void main(String[] args) {
@@ -90,6 +89,27 @@ public class Main {
                     .build()
         );
 
+        //6. add int option to the first day column
+        options.addOption(
+          Option.builder("c")
+            .hasArg()
+            .argName("first day column")
+            .desc("use -c 4")
+            .longOpt("column")
+            .build()
+        );
+
+        //7. add int option to the first day column
+        options.addOption(
+                Option.builder("t")
+                        .hasArg()
+                        .argName("time column")
+                        .desc("use -t 20")
+                        .longOpt("timecolumn")
+                        .build()
+        );
+
+
         CommandLineParser clp = new DefaultParser();
 
         try {
@@ -138,6 +158,61 @@ public class Main {
                         }
                         merge(newFile, config);
                         break;
+                    case BUILDSCHEDULE:
+                        String target = "new.xlsx";
+                        if (cl.hasOption("f")) {
+                            target = cl.getOptionValue("f");
+                        }
+
+                        int firstDayColumn = 4;
+
+                        if (cl.hasOption("c")) {
+                            firstDayColumn = Integer.parseInt(cl.getOptionValue("c"));
+                        }
+
+                        if (!Files.exists(Paths.get(target))) {
+                            String userDir = System.getProperty("user.dir");
+
+                            Path newPath = Paths.get(userDir).resolve(target);
+
+                            target = String.valueOf(newPath.toAbsolutePath());
+
+                        }
+
+                        saveUniqueScheduleValuesToXLSX(scanSchedule(target, firstDayColumn), target);
+
+                        break;
+                    case FULLTIME:
+                        String _target = "new.xlsx";
+                        if (cl.hasOption("f")) {
+                            _target = cl.getOptionValue("f");
+                        }
+
+                        int _firstDayColumn = 4;
+
+                        if (cl.hasOption("c")) {
+                            _firstDayColumn = Integer.parseInt(cl.getOptionValue("c"));
+                        }
+
+                        int _timeColumn = 20;
+
+                        if (cl.hasOption("t")) {
+                            _timeColumn = Integer.parseInt(cl.getOptionValue("t"));
+                        }
+
+
+                        if (!Files.exists(Paths.get(_target))) {
+                            String userDir = System.getProperty("user.dir");
+
+                            Path newPath = Paths.get(userDir).resolve(_target);
+
+                            _target = String.valueOf(newPath.toAbsolutePath());
+
+                        }
+                        updateFieldTimeForFile(_target, createTimeMapperFromPath(_target), _firstDayColumn, _timeColumn);
+
+
+                        break;
                     default:
                         break;
 
@@ -174,9 +249,11 @@ public class Main {
                 //create xlxs file
                 boolean isFirstFile = true;
 
-                int rowToAppend = 0;
-
                 Path toFilePath = Paths.get(System.getProperty("user.dir")).resolve(newFile);
+
+
+                List<XSSFCellStyle> listStyles = new ArrayList<>();
+
 
                 for (Configuration c : configurations) {
 
@@ -189,11 +266,11 @@ public class Main {
 
                         createNewFile(toFilePath);
 
-                        rowToAppend += copySheetFrom(c, toFilePath.toString(), true, rowToAppend);
+                        copySheetFrom(c, toFilePath.toString(), true, listStyles);
 
                         isFirstFile = false;
                     } else {
-                        rowToAppend += copySheetFrom(c, toFilePath.toString(), false, rowToAppend);
+                        copySheetFrom(c, toFilePath.toString(), false, listStyles);
                     }
 
 
@@ -350,15 +427,15 @@ public class Main {
 
     }
 
-    private static int copySheetFrom(Configuration source, String target, boolean createSheet, int rowToNumber) {
+    private static void copySheetFrom(Configuration source, String target, boolean createSheet, List<XSSFCellStyle> listStyles) {
 
         final int TEAM_COL = 3;
 
-        int rowToIndex = rowToNumber++;
+        int rowToIndex = -Integer.MIN_VALUE;
 
         try {
 
-            XSSFWorkbook wbReader = new XSSFWorkbook(new FileInputStream(source.getPath()));
+            XSSFWorkbook wbReader = new XSSFWorkbook(new FileInputStream(Paths.get(source.getPath()).toFile()));
 
             XSSFSheet sheetFrom = wbReader.getSheetAt(0);
 
@@ -366,14 +443,18 @@ public class Main {
 
             XSSFSheet sheetTo = createSheet ? wbReader.createSheet(): wbWriter.getSheetAt(0);
 
+            rowToIndex = sheetTo.getLastRowNum() + 1;
+
+
+
             for (int i = source.getFrom() - 1; i < source.getTo(); i++) {
                 XSSFRow rowFrom = sheetFrom.getRow(i);
                 if (rowFrom == null) continue;
 
-                XSSFRow rowTo = sheetTo.createRow(rowToIndex);
+                XSSFRow rowTo = sheetTo.createRow(rowToIndex++);
 
 
-                for (int j = rowFrom.getFirstCellNum(); j <= source.getColFirstDay() + 15; j++) {
+                for (int j = rowFrom.getFirstCellNum(); j < source.getColFirstDay() + 15; j++) {
 
                     int toRowIndex = j >= TEAM_COL ? j + 1 : j;
 
@@ -386,12 +467,18 @@ public class Main {
                         XSSFCell cellTo = rowTo.createCell(TEAM_COL);
                         //set cell style
                         if (fioCell != null) {
-
-//                            XSSFCellStyle cellStyle = fioCell.getCellStyle();
+                              //XSSFSheetUtils.copyCell(fioCell, cellTo, listStyles);
+//
+//                              XSSFCellStyle cellStyle = fioCell.getCellStyle();
 //                            if (cellStyle != null) {
 //                                XSSFCellStyle newCellStyle = wbWriter.createCellStyle();
-//                                newCellStyle.cloneStyleFrom(cellStyle);
-//                                cellTo.setCellStyle(newCellStyle);
+//                                try {
+//                                    newCellStyle.cloneStyleFrom(cellStyle);
+//                                    cellTo.setCellStyle(newCellStyle);
+//                                } catch (IllegalArgumentException ex) {
+//                                    ex.printStackTrace();
+//                                }
+//
 //                            }
                         }
 
@@ -411,13 +498,23 @@ public class Main {
                     XSSFCell cellTo = rowTo.createCell(toRowIndex);
 
 
-//                    XSSFCellStyle cellStyleFrom = cellFrom.getCellStyle();
-//
-//                    if (cellStyleFrom != null) {
+                    XSSFCellStyle cellStyleFrom = cellFrom.getCellStyle();
+
+
+                    if (cellStyleFrom != null) {
+                          //XSSFSheetUtils.copyCell(cellFrom, cellTo, listStyles);
 //                        XSSFCellStyle cellStyle = wbWriter.createCellStyle();
-//                        cellStyle.cloneStyleFrom(cellStyleFrom);
-//                        cellTo.setCellStyle(cellStyle);
-//                    }
+//                        try {
+//                            cellStyle.cloneStyleFrom(cellStyleFrom);
+//                            cellTo.setCellStyle(cellStyle);
+//                        } catch (IllegalArgumentException ex) {
+//                            ex.printStackTrace();
+//                        }
+
+
+                    }
+
+                    //TODO: code below should be removed because of the method XSSFSheetUtils.copyCell does the same!!!!
 
                     CellType cellType = cellFrom.getCellTypeEnum();
 
@@ -462,9 +559,212 @@ public class Main {
             e.printStackTrace();
         }
 
-        return rowToIndex;
     }
 
+    private static List<String> scanSchedule(String target, int firstDayColumn) {
+        List<String> differentCellsValues = new ArrayList<>();
+
+        try {
+            XSSFWorkbook wbReader = new XSSFWorkbook(new FileInputStream(target));
+
+            XSSFSheet activeSheet = wbReader.getSheetAt(0);
+
+            for (int rowIndex = activeSheet.getFirstRowNum(); rowIndex <= activeSheet.getLastRowNum(); rowIndex++) {
+                XSSFRow row = activeSheet.getRow(rowIndex);
+                for (int colIndex = firstDayColumn; colIndex <= row.getLastCellNum(); colIndex++) {
+                    XSSFCell cell = row.getCell(colIndex);
+                    if (cell == null) continue;
+                    String rawValue = cell.getStringCellValue();
+
+                    String[] strings = rawValue.split("\\n");
+
+                    for (String current : strings) {
+                        if (!current.isEmpty()) {
+                            differentCellsValues.add(current);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return differentCellsValues;
+    }
+
+    private static void saveUniqueScheduleValuesToXLSX(List<String> differentCellsValues, String stringPath) {
+
+        Path path = Paths.get(stringPath);
+
+        XSSFWorkbook wbWritable = null;
+        try {
+            wbWritable = new XSSFWorkbook(new FileInputStream(stringPath));
+
+
+            XSSFSheet sheet = wbWritable.getSheet("map");
+
+            if (sheet == null) {
+                sheet = wbWritable.createSheet("map");
+            }
+
+            Set<String> uniqueSet = new HashSet<>(differentCellsValues);
+
+
+            int rowIndex = 0;
+            for (String s : uniqueSet) {
+                XSSFRow row = sheet.createRow(rowIndex++);
+                row.createCell(0).setCellValue(s);
+            }
+
+            FileOutputStream fos = new FileOutputStream(path.toFile());
+
+            wbWritable.write(fos);
+
+            fos.close();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private static void updateFieldTimeForFile(String targetPath, Map<String, Double> mapper, int firstDayColumn, int timeColumn) {
+
+
+        try {
+
+            XSSFWorkbook wbWriteable = new XSSFWorkbook(new FileInputStream(targetPath));
+
+            XSSFSheet sheet = wbWriteable.getSheetAt(0);
+
+            for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                XSSFRow row = sheet.getRow(rowIndex);
+
+
+                int hours = 0;
+                for (int colIndex = firstDayColumn; colIndex <= firstDayColumn + 15; colIndex++ ) {
+                    XSSFCell cell = row.getCell(colIndex);
+
+                    if (cell == null) continue;
+
+                    String[] keys = cell.getStringCellValue().split("\\n");
+
+                    for (String key : keys) {
+                        if (!key.isEmpty()) {
+                            Double value = mapper.get(key);
+                            hours += value.intValue();
+                        }
+                    }
+                }
+
+                XSSFCell hoursCell = row.createCell(timeColumn);
+
+                hoursCell.setCellType(CellType.NUMERIC);
+                hoursCell.setCellValue(hours);
+            }
+
+            FileOutputStream fos = new FileOutputStream(targetPath);
+
+            wbWriteable.write(fos);
+
+            fos.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private static Map<String, Double> createTimeMapperFromPath(String stringPath) {
+        Map<String, Double> map = new HashMap<>();
+
+        Path path = Paths.get(stringPath);
+
+        if (Files.exists(path)) {
+
+            try {
+                XSSFWorkbook wbReadable = new XSSFWorkbook(new FileInputStream(path.toFile()));
+
+                XSSFSheet sheet = wbReadable.getSheet("map");
+
+                for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum();rowIndex++) {
+                    XSSFRow row = sheet.getRow(rowIndex);
+                    String key = row.getCell(0).getStringCellValue();
+                    double value = 0d;
+
+                    XSSFCell cell = row.getCell(1);
+                    if (cell != null) {
+                        value = cell.getNumericCellValue();
+                    }
+                    map.put(key, value);
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        } else {
+            //TODO: log this situation
+        }
+
+        return Collections.unmodifiableMap(map);
+
+    }
+
+    private static void writeTimeTableForFile(String newStringPath, String sourcePath, Map<String, Double> mapper) {
+        if (!Files.exists(Paths.get(newStringPath))) {
+            try {
+                Files.copy(Paths.get(sourcePath), Paths.get(newStringPath), StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+
+                XSSFWorkbook workbook = new XSSFWorkbook(new FileInputStream(newStringPath));
+
+                XSSFSheet sheet = workbook.getSheetAt(0);
+
+                boolean isModified = false;
+
+                for (int rowIndex = sheet.getFirstRowNum(); rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+
+                    XSSFRow row = sheet.getRow(rowIndex);
+
+                    for (int colIndex = 4; colIndex <= row.getLastCellNum(); colIndex++) {
+                        XSSFCell cell = row.getCell(colIndex);
+                        if (cell == null) continue;
+
+                        String[] keys = cell.getStringCellValue().split("\\n");
+
+                        double hours = 0d;
+                        for (String key : keys) {
+                            if (!key.isEmpty()) {
+                                Double value = mapper.get(key);
+                                hours += value;
+                            }
+                        }
+
+                        cell.setCellType(CellType.NUMERIC);
+                        cell.setCellValue(hours);
+                        isModified = true;
+                    }
+
+                }
+
+                if (isModified) {
+                    FileOutputStream fos = new FileOutputStream(newStringPath);
+
+                    workbook.write(fos);
+
+                    fos.close();
+                }
+
+
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
 
 }
