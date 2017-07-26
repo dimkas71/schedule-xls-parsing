@@ -1,19 +1,23 @@
-"00/0010", true
-"00/1231", true
-"0d/000023", false
-"empty", false
-"00/1233", true
-"10/0397",true
-"10/0540",true
-"10/0111",true
-"10/0393",true
-"10/0577",true
-"10/0271",true
-"10/0535",true
-"10/0161",true
-"10/0266",true
-"10/0084",true
-"10/0488",true
-"10/0294",true
-"10/0456",true
-"10/0273",true
+00/0010, true
+00/1231, true
+0d/000023, false
+empty, false
+00/1233, true
+10/0397,TRUE
+10/0540,TRUE
+10/0111,TRUE
+10/0393,TRUE
+10/0577,TRUE
+10/0271,TRUE
+10/0535,TRUE
+10/0161,TRUE
+10/0266,TRUE
+10/0084,TRUE
+10/0488,TRUE
+10/0294,TRUE
+10/0456,TRUE
+10/0273,TRUE
+100/333,FALSE
+0001/22,FALSE
+323,FALSE
+11001100f,FALSE
